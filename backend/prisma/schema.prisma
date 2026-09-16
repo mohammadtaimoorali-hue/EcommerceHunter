@@ -1,0 +1,389 @@
+// Prisma schema for ecom-hunter.
+// Written to be Postgres-compatible: avoids SQLite-only types so DATABASE_URL
+// can later be swapped to a Postgres connection string with `prisma migrate`.
+// Local dev uses SQLite (file:./dev.db) via DATABASE_URL in .env.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String
+  platform  String // e.g. "ebay"
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings Listing[]
+  credentials ApiCredential[]
+
+  @@map("stores")
+}
+
+model Source {
+  id           String   @id @default(uuid())
+  key          String   @unique // e.g. "fixture", "kmart", "bigw"
+  name         String
+  connectorType String
+  status       String   @default("ACTIVE")
+  config       String?  // JSON blob of connector config
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sourceProducts SourceProduct[]
+
+  @@map("sources")
+}
+
+model SourceProduct {
+  id              String   @id @default(uuid())
+  sourceId        String
+  source          Source   @relation(fields: [sourceId], references: [id])
+  externalId      String // id in the source system
+  title           String
+  brand           String?
+  model           String?
+  gtin            String?
+  category        String?
+  url             String?
+  imageUrl        String?
+  description     String?
+  raw             String? // JSON blob of raw connector payload
+  canonicalProductId String?
+  canonicalProduct   CanonicalProduct? @relation(fields: [canonicalProductId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  prices ProductPrice[]
+  stocks ProductStock[]
+
+  @@unique([sourceId, externalId])
+  @@index([canonicalProductId])
+  @@map("source_products")
+}
+
+model CanonicalProduct {
+  id          String   @id @default(uuid())
+  title       String
+  brand       String?
+  model       String?
+  gtin        String?
+  category    String?
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceProducts SourceProduct[]
+  variants       ProductVariant[]
+  scores         ProductScore[]
+  trends         ProductTrend[]
+  competitors    Competitor[]
+  listingDrafts  ListingDraft[]
+  riskFlags      RiskFlag[]
+
+  @@index([gtin])
+  @@index([brand, model])
+  @@map("canonical_products")
+}
+
+model ProductVariant {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  sku                String?
+  attributes         String? // JSON e.g. {"color":"black","size":"M"}
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([canonicalProductId])
+  @@map("product_variants")
+}
+
+model ProductPrice {
+  id              String   @id @default(uuid())
+  sourceProductId String
+  sourceProduct   SourceProduct @relation(fields: [sourceProductId], references: [id])
+  price           Float
+  currency        String   @default("AUD")
+  capturedAt      DateTime @default(now())
+
+  @@index([sourceProductId, capturedAt])
+  @@map("product_prices")
+}
+
+model ProductStock {
+  id              String   @id @default(uuid())
+  sourceProductId String
+  sourceProduct   SourceProduct @relation(fields: [sourceProductId], references: [id])
+  inStock         Boolean
+  quantity        Int?
+  capturedAt      DateTime @default(now())
+
+  @@index([sourceProductId, capturedAt])
+  @@map("product_stock")
+}
+
+model ProductScore {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  demandScore        Float
+  trendScore         Float
+  competitionScore   Float
+  stockScore         Float
+  riskScore          Float
+  shippingScore      Float
+  overallScore       Float
+  breakdown          String? // JSON of full formula breakdown
+  computedAt         DateTime @default(now())
+
+  @@index([canonicalProductId, computedAt])
+  @@map("product_scores")
+}
+
+model ProductTrend {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  metric             String // e.g. "search_volume"
+  value              Float
+  capturedAt         DateTime @default(now())
+
+  @@index([canonicalProductId, metric])
+  @@map("product_trends")
+}
+
+model Competitor {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  marketplace        String   @default("ebay")
+  sellerName         String?
+  price              Float
+  shippingCost       Float    @default(0)
+  condition          String   @default("NEW")
+  capturedAt         DateTime @default(now())
+
+  @@index([canonicalProductId])
+  @@map("competitors")
+}
+
+model ListingDraft {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  title              String
+  description        String
+  itemSpecifics      String // JSON
+  categoryId         String?
+  priceTarget        Float
+  priceMin           Float
+  priceMax           Float
+  status             String   @default("PENDING") // PENDING, APPROVED, REJECTED, PUBLISHED
+  riskStatus         String   @default("REVIEW_REQUIRED")
+  riskReasons        String? // JSON array
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  listings Listing[]
+
+  @@index([canonicalProductId])
+  @@map("listing_drafts")
+}
+
+model Listing {
+  id             String   @id @default(uuid())
+  listingDraftId String
+  listingDraft   ListingDraft @relation(fields: [listingDraftId], references: [id])
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id])
+  externalId     String? // marketplace listing id
+  status         String   @default("ACTIVE") // ACTIVE, PAUSED, ENDED
+  currentPrice   Float
+  quantity       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events        ListingEvent[]
+  orders        Order[]
+  profitRecords ProfitRecord[]
+
+  @@index([storeId])
+  @@map("listings")
+}
+
+model ListingEvent {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  type      String // CREATED, PRICE_CHANGE, PAUSED, RESUMED, ENDED, ERROR
+  payload   String? // JSON
+  createdAt DateTime @default(now())
+
+  @@index([listingId, createdAt])
+  @@map("listing_events")
+}
+
+model Order {
+  id         String   @id @default(uuid())
+  listingId  String
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  externalId String?
+  quantity   Int      @default(1)
+  salePrice  Float
+  buyerName  String?
+  status     String   @default("PENDING") // PENDING, FULFILLED, CANCELLED, REFUNDED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  profitRecords ProfitRecord[]
+
+  @@index([listingId])
+  @@map("orders")
+}
+
+model ProfitRecord {
+  id           String   @id @default(uuid())
+  listingId    String
+  listing      Listing  @relation(fields: [listingId], references: [id])
+  orderId      String?
+  order        Order?   @relation(fields: [orderId], references: [id])
+  sellPrice    Float
+  totalCost    Float
+  profit       Float
+  marginPercent Float
+  createdAt    DateTime @default(now())
+
+  @@index([listingId])
+  @@map("profit_records")
+}
+
+model Job {
+  id           String   @id @default(uuid())
+  type         String // DISCOVERY, PRICE_STOCK_CHECK, MONITORING, RESCORING, WEEKLY_ANALYSIS, PUBLISH_QUEUE
+  status       String   @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  payload      String? // JSON
+  scheduledFor DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  runs        JobRun[]
+  queueItems  QueueItem[]
+
+  @@index([status, scheduledFor])
+  @@map("jobs")
+}
+
+model JobRun {
+  id         String    @id @default(uuid())
+  jobId      String
+  job        Job       @relation(fields: [jobId], references: [id])
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("RUNNING") // RUNNING, COMPLETED, FAILED
+  result     String? // JSON
+  error      String?
+
+  @@index([jobId])
+  @@map("job_runs")
+}
+
+model QueueItem {
+  id         String   @id @default(uuid())
+  jobId      String?
+  job        Job?     @relation(fields: [jobId], references: [id])
+  type       String // e.g. PUBLISH_LISTING, UPDATE_PRICE
+  payload    String // JSON
+  status     String   @default("PENDING") // PENDING, PROCESSING, DONE, FAILED
+  attempts   Int      @default(0)
+  lastError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status])
+  @@map("queue_items")
+}
+
+model RiskFlag {
+  id                 String   @id @default(uuid())
+  canonicalProductId String
+  canonicalProduct   CanonicalProduct @relation(fields: [canonicalProductId], references: [id])
+  status             String // SAFE_TO_LIST, REVIEW_REQUIRED, BLOCKED
+  reasons            String // JSON array of strings
+  createdAt          DateTime @default(now())
+
+  @@index([canonicalProductId])
+  @@map("risk_flags")
+}
+
+model SystemAlert {
+  id        String   @id @default(uuid())
+  severity  String   @default("INFO") // INFO, WARNING, CRITICAL
+  message   String
+  context   String? // JSON
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("system_alerts")
+}
+
+model ApiCredential {
+  id          String   @id @default(uuid())
+  storeId     String?
+  store       Store?   @relation(fields: [storeId], references: [id])
+  provider    String // e.g. "ebay"
+  environment String   @default("SANDBOX") // SANDBOX, PRODUCTION
+  clientId    String?
+  clientSecret String?
+  refreshToken String?
+  accessToken  String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("api_credentials")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  String? // JSON
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String // JSON-encoded value
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
