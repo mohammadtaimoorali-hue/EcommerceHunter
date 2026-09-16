@@ -1,0 +1,59 @@
+# Local dev default: SQLite (no `postgres` service needed — DATABASE_URL
+# points at a file inside the `app`/`worker` container volume).
+# Production: swap DATABASE_URL to point at the `postgres` service below
+# (uncomment it) and re-run `prisma migrate deploy`.
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: ./backend
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: file:./dev.db
+      PORT: 4000
+      EBAY_ENVIRONMENT: SANDBOX
+    volumes:
+      - backend-data:/app/prisma
+
+  worker:
+    build:
+      context: ./backend
+    command: ['node', 'dist/src/worker.js']
+    environment:
+      DATABASE_URL: file:./dev.db
+      QUEUE_POLL_INTERVAL_MS: 5000
+    volumes:
+      - backend-data:/app/prisma
+    depends_on:
+      - app
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000/api
+    depends_on:
+      - app
+
+  # Optional: switch to Postgres for production by pointing DATABASE_URL at
+  # this service (postgresql://ecomhunter:ecomhunter@postgres:5432/ecomhunter)
+  # and changing `provider = "sqlite"` to `provider = "postgresql"` in
+  # backend/prisma/schema.prisma, then running `prisma migrate deploy`.
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: ecomhunter
+  #     POSTGRES_PASSWORD: ecomhunter
+  #     POSTGRES_DB: ecomhunter
+  #   ports:
+  #     - '5432:5432'
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  backend-data:
+  # postgres-data:

@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
+    "start:worker": "node dist/src/worker.js",
     "dev": "ts-node src/server.ts",
     "worker": "ts-node src/worker.ts",
     "prisma:generate": "prisma generate",
