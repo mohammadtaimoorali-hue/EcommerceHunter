@@ -13,6 +13,7 @@ export default function EbayListings() {
     <div>
       <h1>eBay Listings</h1>
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -35,6 +36,7 @@ export default function EbayListings() {
           ))}
         </tbody>
       </table>
+      </div>
       {listings.length === 0 && <p>No listings yet — run the dry-run pipeline from Overview.</p>}
     </div>
   );

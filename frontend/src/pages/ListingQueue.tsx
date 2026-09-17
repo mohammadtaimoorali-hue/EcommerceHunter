@@ -25,6 +25,7 @@ export default function ListingQueue() {
     <div>
       <h1>Listing Queue</h1>
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -43,17 +44,20 @@ export default function ListingQueue() {
               <td>{d.status}</td>
               <td>{d.riskStatus}</td>
               <td>
-                <button onClick={() => approve(d.id)} disabled={d.status === 'APPROVED'}>
-                  Approve
-                </button>
-                <button onClick={() => reject(d.id)} disabled={d.status === 'REJECTED'}>
-                  Reject
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => approve(d.id)} disabled={d.status === 'APPROVED'}>
+                    Approve
+                  </button>
+                  <button onClick={() => reject(d.id)} disabled={d.status === 'REJECTED'}>
+                    Reject
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       {drafts.length === 0 && <p>No listing drafts yet — run the dry-run pipeline from Overview.</p>}
     </div>
   );

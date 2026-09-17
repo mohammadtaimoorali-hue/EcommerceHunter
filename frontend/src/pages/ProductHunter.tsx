@@ -35,6 +35,7 @@ export default function ProductHunter() {
         </label>
         <button onClick={load}>Refresh</button>
       </div>
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -61,6 +62,7 @@ export default function ProductHunter() {
           ))}
         </tbody>
       </table>
+      </div>
       {products.length === 0 && <p>No products yet — run the dry-run pipeline from Overview.</p>}
     </div>
   );

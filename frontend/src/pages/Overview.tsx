@@ -62,7 +62,7 @@ export default function Overview() {
           {loading ? 'Running…' : 'Run Dry-Run Pipeline'}
         </button>
         {dryRunResult && (
-          <div className="dry-run-summary">
+          <div className="dry-run-summary" style={{ marginTop: '1rem' }}>
             <p>Candidates found: {dryRunResult.candidatesFound}</p>
             <p>Shortlisted: {dryRunResult.shortlisted}</p>
             <p>Listings generated: {dryRunResult.listingsGenerated}</p>

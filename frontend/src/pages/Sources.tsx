@@ -19,6 +19,7 @@ export default function Sources() {
         plugin architecture extends without touching core code — they intentionally report
         UNAVAILABLE rather than scrape any site without a public API.
       </p>
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -32,11 +33,12 @@ export default function Sources() {
             <tr key={c.key}>
               <td>{c.key}</td>
               <td>{c.health.status}</td>
-              <td>{c.health.reason ?? '—'}</td>
+              <td style={{ whiteSpace: 'normal' }}>{c.health.reason ?? '—'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
