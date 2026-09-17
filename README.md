@@ -154,6 +154,35 @@ Returns a JSON summary: candidates found, shortlisted, listings generated,
 listings published (mock), and estimated revenue/profit, plus a per-product
 breakdown. The Overview page in the frontend has a button that does the same.
 
+## Price & stock monitor
+
+`backend/src/monitor/priceStockMonitor.ts` (spec sections 16-17) re-checks
+every `ACTIVE`/`PAUSED` listing's underlying source product on each
+`PRICE_STOCK_CHECK` run (scheduled every 30 minutes, or trigger it on demand
+— see below) and reacts:
+
+- **Out of stock** → pauses the mock/real listing (quantity 0) or ends it
+  outright, per `monitor_settings.onOutOfStock` (`PAUSE` default, or `END`).
+- **Back in stock** (only for listings this monitor itself paused for a
+  stock-out) → restores quantity and resumes the listing.
+- **Retail price changed** by more than `monitor_settings.minPriceChangePercent`
+  → recalculates profitability/target price against current fee settings and
+  competitor signals; if it still clears `safety_limits` (`MIN_PROFIT_AUD`,
+  `MIN_MARGIN_PERCENT`), pushes a price update clamped to
+  `MAX_PRICE_CHANGE_PERCENT` per run; if it no longer clears the safety
+  limits, pauses/ends the listing per `monitor_settings.onUnprofitable`.
+
+Every reaction is recorded as a `ListingEvent` (`PAUSED`/`RESUMED`/`ENDED`/
+`PRICE_CHANGE`, each with a reason payload), visible per-listing via
+`GET /api/listings/:id/events` and in the eBay Listings page's "History"
+expander. Full price/stock history itself is preserved forever in
+`product_prices`/`product_stock` (append-only — never overwritten).
+
+The monitor is scoped to one store's listings (`storeId` param) since a
+marketplace adapter instance corresponds to one store's connection; the job
+runner resolves this from the default demo store. Unit/integration coverage:
+`backend/tests/priceStockMonitor.test.ts`.
+
 ## Admin job API
 
 Every scheduled job type can be triggered on demand for testing:
@@ -178,6 +207,9 @@ table, which holds:
 - `fee_settings` — eBay AU fee assumptions (see below).
 - `scoring_weights` — opportunity scoring weights (see `engines/scoring.ts`).
 - `desired_margin_percent` — target margin used by the pricing engine.
+- `monitor_settings` — `onOutOfStock` (`PAUSE` default | `END`),
+  `onUnprofitable` (`PAUSE` default | `END`), `minPriceChangePercent` (1) —
+  used by the price/stock monitor, see below.
 
 ### Enabling AUTONOMOUS mode
 
@@ -261,12 +293,14 @@ numbers for real listings.** See `backend/src/engines/profitability.ts`.
   sandbox** — `connect()`'s OAuth2 client-credentials flow is implemented,
   but `createListing`/`updateListing`/etc. are documented stubs pending real
   sandbox credentials.
-- The scheduler's job runners (`DISCOVERY`, `PRICE_STOCK_CHECK`, etc.) all
-  currently invoke the same dry-run pipeline slice against the shared demo
-  `FixtureConnector`/`MockEbayAdapter` pair rather than per-source, per-store
-  routing — this is enough to prove the queue/scheduler/safety-limit
-  machinery end-to-end, but a production build should split these into
-  narrower, per-source job payloads.
+- The scheduler's discovery-shaped job runners (`DISCOVERY`, `MONITORING`,
+  `RESCORING`, `WEEKLY_ANALYSIS`) all currently invoke the same dry-run
+  pipeline slice against the shared demo `FixtureConnector`/`MockEbayAdapter`
+  pair rather than per-source, per-store routing — this is enough to prove
+  the queue/scheduler/safety-limit machinery end-to-end, but a production
+  build should split these into narrower, per-source job payloads.
+  `PRICE_STOCK_CHECK` is the exception — it runs the real monitor described
+  below, not the dry-run slice.
 - `demandScore`/`trendScore` in the scoring engine are placeholder constants
   (60/55) — a real deployment would feed these from a trend/search-volume
   data source (`product_trends` table exists for this).

@@ -26,6 +26,7 @@ export const api = {
   approveDraft: (id: string) => request<any>(`/listing-drafts/${id}/approve`, { method: 'POST' }),
   rejectDraft: (id: string) => request<any>(`/listing-drafts/${id}/reject`, { method: 'POST' }),
   listings: () => request<any[]>('/listings'),
+  listingEvents: (id: string) => request<any[]>(`/listings/${id}/events`),
   sources: () => request<any>('/sources'),
   settings: () => request<Record<string, unknown>>('/settings'),
   updateSetting: (key: string, value: unknown) =>

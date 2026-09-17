@@ -10,11 +10,29 @@ export const DEFAULT_SAFETY_LIMITS = {
   MAX_SOURCE_REQUESTS_PER_MINUTE: 30,
 };
 
+// Kept here (rather than in monitor/priceStockMonitor.ts) to avoid a circular
+// import — the monitor imports getSetting() from this module.
+export interface MonitorSettings {
+  /** When a source product goes out of stock: 'PAUSE' keeps the listing (qty 0) for quick recovery, 'END' ends it outright. */
+  onOutOfStock: 'PAUSE' | 'END';
+  /** When a price change makes a listing no longer meet safety-limit profitability: 'PAUSE' or 'END'. */
+  onUnprofitable: 'PAUSE' | 'END';
+  /** Ignore retail price wobble smaller than this percent (avoids thrashing on noise). */
+  minPriceChangePercent: number;
+}
+
+export const DEFAULT_MONITOR_SETTINGS: MonitorSettings = {
+  onOutOfStock: 'PAUSE',
+  onUnprofitable: 'PAUSE',
+  minPriceChangePercent: 1,
+};
+
 export const DEFAULT_SETTINGS: Record<string, unknown> = {
   operating_mode: 'ASSISTED',
   fee_settings: DEFAULT_FEE_SETTINGS,
   scoring_weights: DEFAULT_WEIGHTS,
   safety_limits: DEFAULT_SAFETY_LIMITS,
+  monitor_settings: DEFAULT_MONITOR_SETTINGS,
   desired_margin_percent: 25,
   scheduler_intervals: {
     discovery_hours: 6,

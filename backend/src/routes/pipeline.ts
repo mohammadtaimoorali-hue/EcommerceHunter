@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import { FixtureConnector } from '../connectors/fixture';
-import { MockEbayAdapter } from '../marketplace/mockEbay';
+import { getConnectorRegistry } from '../connectors/registry';
+import { getSharedMockEbayAdapter } from '../marketplace/registry';
 import { runDryRunPipeline } from '../pipeline/dryRun';
 
 export function pipelineRoutes(prisma: PrismaClient): Router {
@@ -18,8 +18,8 @@ export function pipelineRoutes(prisma: PrismaClient): Router {
           data: { name: 'Default eBay Store (dry-run)', platform: 'ebay' },
         });
       }
-      const connector = new FixtureConnector();
-      const marketplace = new MockEbayAdapter();
+      const connector = getConnectorRegistry()['fixture'];
+      const marketplace = getSharedMockEbayAdapter();
       const summary = await runDryRunPipeline({
         prisma,
         connector,

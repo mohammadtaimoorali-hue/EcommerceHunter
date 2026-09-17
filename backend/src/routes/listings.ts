@@ -41,11 +41,25 @@ export function listingsRoutes(prisma: PrismaClient): Router {
   // GET /api/listings — eBay Listings page.
   router.get('/', async (_req, res) => {
     const listings = await prisma.listing.findMany({
-      include: { listingDraft: { include: { canonicalProduct: true } }, store: true },
+      include: {
+        listingDraft: { include: { canonicalProduct: true } },
+        store: true,
+        events: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
     res.json(listings);
+  });
+
+  // GET /api/listings/:id/events — full price/stock monitor history for one listing.
+  router.get('/:id/events', async (req, res) => {
+    const events = await prisma.listingEvent.findMany({
+      where: { listingId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(events.map((e) => ({ ...e, payload: e.payload ? JSON.parse(e.payload) : null })));
   });
 
   return router;

@@ -2,8 +2,11 @@
 // JobRun (start/finish/status/result) for observability.
 import type { PrismaClient } from '@prisma/client';
 import { FixtureConnector } from '../connectors/fixture';
+import { getConnectorRegistry } from '../connectors/registry';
 import { MockEbayAdapter } from '../marketplace/mockEbay';
+import { getSharedMockEbayAdapter } from '../marketplace/registry';
 import { runDryRunPipeline } from '../pipeline/dryRun';
+import { runPriceStockMonitor } from '../monitor/priceStockMonitor';
 
 export const JOB_TYPES = [
   'DISCOVERY',
@@ -16,19 +19,17 @@ export const JOB_TYPES = [
 export type JobType = (typeof JOB_TYPES)[number];
 
 // Shared fixture connector + mock adapter instance for the demo/dev
-// environment. In a multi-tenant/production build these would be resolved
-// per-store from `sources` / `api_credentials`.
-let sharedConnector: FixtureConnector | null = null;
-let sharedMarketplace: MockEbayAdapter | null = null;
-
+// environment, also used by the dry-run API route (see
+// marketplace/registry.ts and connectors/registry.ts) so a listing published
+// via the dashboard is the same in-memory listing the scheduler's
+// PRICE_STOCK_CHECK job later monitors. In a multi-tenant/production build
+// these would be resolved per-store from `sources` / `api_credentials`.
 function getSharedConnector(): FixtureConnector {
-  if (!sharedConnector) sharedConnector = new FixtureConnector();
-  return sharedConnector;
+  return getConnectorRegistry()['fixture'] as FixtureConnector;
 }
 
 function getSharedMarketplace(): MockEbayAdapter {
-  if (!sharedMarketplace) sharedMarketplace = new MockEbayAdapter();
-  return sharedMarketplace;
+  return getSharedMockEbayAdapter();
 }
 
 async function getOrCreateDefaultStore(prisma: PrismaClient) {
@@ -39,17 +40,23 @@ async function getOrCreateDefaultStore(prisma: PrismaClient) {
 
 export async function runJob(prisma: PrismaClient, type: JobType, payload?: any): Promise<any> {
   switch (type) {
+    case 'PRICE_STOCK_CHECK': {
+      // Real price/stock monitor (spec sections 16-17): re-checks every
+      // active/paused listing's source product, reacting to stock-outs,
+      // stock recovery, and profitability-affecting price moves.
+      const marketplace = getSharedMarketplace();
+      const store = await getOrCreateDefaultStore(prisma);
+      return runPriceStockMonitor(prisma, marketplace, getConnectorRegistry(), store.id);
+    }
     case 'DISCOVERY':
-    case 'PRICE_STOCK_CHECK':
     case 'MONITORING':
     case 'RESCORING':
     case 'WEEKLY_ANALYSIS': {
       // For this build, all of these trigger the same dry-run pipeline
       // slice against the FixtureConnector (the only real, working
-      // connector) — discovery re-normalizes/rescoes, and price/stock
-      // checks refresh price+stock snapshots as a side effect of running
-      // discovery again. A production build would split these into
-      // dedicated, narrower runners per source.
+      // connector). A production build would split these into dedicated,
+      // narrower runners per source. Price/stock re-checking of already
+      // published listings is handled separately by PRICE_STOCK_CHECK above.
       const store = await getOrCreateDefaultStore(prisma);
       const summary = await runDryRunPipeline({
         prisma,
