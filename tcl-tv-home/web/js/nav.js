@@ -59,7 +59,9 @@ export function setFocus(el) {
   if (prev && prev !== el) prev.classList.remove("focus");
   el.classList.add("focus");
   lastFocus[name] = el;
-  el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  el.dispatchEvent(new CustomEvent("navfocus", { bubbles: true }));
+  // Only overlays scroll; the home screen never needs it.
+  if (name !== "home") el.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 export function focusFirst(name) {
@@ -100,6 +102,7 @@ export function move(dir) {
   return false;
 }
 
+let lastMoveAt = 0;
 const DIRS = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
 
 export function handleKey(e) {
@@ -119,7 +122,16 @@ export function handleKey(e) {
 
   if (L && L.onKey && L.onKey(e)) { e.preventDefault(); return; }
 
-  if (DIRS[e.key]) { move(DIRS[e.key]); e.preventDefault(); return; }
+  if (DIRS[e.key]) {
+    // Holding an arrow fires dozens of repeats a second; cap it so focus
+    // moves at a steady, readable pace instead of queueing up lag.
+    const now = Date.now();
+    if (e.repeat && now - lastMoveAt < 110) { e.preventDefault(); return; }
+    lastMoveAt = now;
+    move(DIRS[e.key]);
+    e.preventDefault();
+    return;
+  }
   if (e.key === "Enter" || e.key === " ") {
     const el = focused();
     if (el) {

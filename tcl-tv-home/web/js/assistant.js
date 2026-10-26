@@ -2,7 +2,6 @@
 // otherwise ask Claude, which can also act on the TV through tools
 // (open apps, set timers, pin notes, search YouTube) -> speak the answer.
 
-import Anthropic from "../vendor/anthropic.mjs";
 import { registerLayer, openLayer, closeTop, current, setFocus } from "./nav.js";
 import { listen, speak, stopSpeaking, canListen } from "./bridge.js";
 import { getSettings } from "./store.js";
@@ -144,6 +143,13 @@ async function askClaude(text) {
   if (Date.now() - lastTurnAt > 10 * 60 * 1000 || history.length > 24) history = [];
   lastTurnAt = Date.now();
 
+  // The SDK is loaded on first use, so it never slows down the home screen.
+  let Anthropic;
+  try {
+    Anthropic = (await import("../vendor/anthropic.mjs")).default;
+  } catch (e) {
+    return "I couldn't start the assistant. Try again in a moment.";
+  }
   const client = new Anthropic({ apiKey: s.apiKey, dangerouslyAllowBrowser: true });
   const turnStart = history.length;
   history.push({ role: "user", content: `${contextLine()}\n${text}` });

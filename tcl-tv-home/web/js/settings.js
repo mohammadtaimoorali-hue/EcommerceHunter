@@ -39,6 +39,8 @@ function render() {
     cycleRow("accent", "Accent glow", "", `<span style="display:inline-block;width:1.2rem;height:1.2rem;border-radius:50%;vertical-align:middle;background:${s.accent}"></span>`),
     row("Photo links", "One image URL per line", `<textarea data-nav data-field="photoUrls" placeholder="https://…/photo.jpg">${escapeHtml(s.photoUrls.join("\n"))}</textarea>`, "wide"),
     cycleRow("ambientMinutes", "Ambient mode", "Hide the dock when idle", s.ambientMinutes ? `After ${s.ambientMinutes} min` : "Off"),
+    cycleRow("effects", "Visual effects", "Fast keeps it smooth on TVs · Fancy adds frosted glass and motion",
+      s.effects === "fancy" ? "Fancy" : s.effects === "fast" ? "Fast" : (isTV ? "Fast (auto)" : "Fancy (auto)")),
     cycleRow("nightDim", "Night warmth", "Dim and warm the screen 10 PM–6 AM", s.nightDim ? "On" : "Off"),
 
     `<p class="section-title">Assistant</p>`,
@@ -92,6 +94,10 @@ function cycle(key) {
     ambientMinutes: () => ({ ambientMinutes: AMBIENT[(AMBIENT.indexOf(s.ambientMinutes) + 1) % AMBIENT.length] }),
     nightDim: () => ({ nightDim: !s.nightDim }),
     voiceReplies: () => ({ voiceReplies: !s.voiceReplies }),
+    effects: () => {
+      const fast = s.effects === "fast" || (s.effects !== "fancy" && isTV);
+      return { effects: fast ? "fancy" : "fast" };
+    },
   }[key];
   if (!next) return;
   updateSettings(next());

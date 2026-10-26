@@ -6,7 +6,7 @@ A clean, fast home screen for TCL Google TV / Android TV sets, with:
   (e.g. *Light jacket · cools to 53° by 10 PM*).
 - **Living wallpaper**: snowy mountains whose sky follows the real sun, from dawn to stars.
   Or a slideshow of your own photo links.
-- **Clutter-free dock**: up to 7 favourite apps with big banners, plus All apps, Draw, Ask and Appearance.
+- **Apple TV-style app row**: big 16:9 tiles that lift, tilt and catch the light when selected. The row slides sideways, so it holds up to 10 favourites, followed by All apps, Draw, Ask and Appearance.
 - **Voice assistant powered by Claude**: "Play lo-fi on YouTube", "Set a pasta timer for 10 minutes",
   "Pin a note saying dinner at 7", "What should we watch tonight?". Simple commands work offline.
 - **Draw on the screen** with the remote, a mouse, or live from your phone. Pin drawings to the home screen.
@@ -85,7 +85,7 @@ and keeps your settings.
 1. Open **TV Home** from your apps list.
 2. Go right to **Appearance** (the picture icon) and press OK.
 3. Fill in your name and cities. Pick 12/24-hour, °F/°C, wallpaper, accent and ambient timing.
-4. Choose **Choose dock apps** to pick and order up to 7 favourite apps.
+4. Choose **Choose dock apps** to pick and order up to 10 favourite apps.
 5. **Claude API key** for the assistant: create one at <https://console.anthropic.com>
    (Settings → API keys). Typing it with a remote is painful, so use the phone remote instead:
    - Note the **Phone remote** address and PIN at the bottom of Appearance, e.g. `http://192.168.1.50:8765`, PIN `4821`.
@@ -127,7 +127,11 @@ Disabling the launcher also hides Google's "Continue watching" rows and the prof
 
 ## Step 6 — Make the TV feel faster
 
-These are optional and reversible.
+TV Home starts in **Fast** visual mode on a TV: solid panels instead of frosted glass, and a still wallpaper.
+If your TV is powerful, switch **Appearance → Visual effects** to *Fancy* for the full glass-and-motion look.
+If it ever feels slow, switch it back to *Fast*.
+
+These TV tweaks are optional and reversible.
 
 - **Developer options**: set *Window animation scale*, *Transition animation scale* and
   *Animator duration scale* to **0.5x**.
@@ -195,5 +199,6 @@ cd tcl-tv-home/tools && npm install && npm run bundle
 | Voice says it isn't available | Make sure the *Google* app is installed and up to date; it provides speech recognition. |
 | No weather | Check the city name in Appearance and the TV's internet connection. |
 | Phone can't connect | Phone and TV must be on the same Wi-Fi. Some routers block "client isolation"; turn that off for your home network. |
+| Home screen feels laggy | Check **Appearance → Visual effects** is *Fast*, and apply the Step 6 tweaks. |
 | An app opens but shows the wrong page | Some apps ignore deep links. "Open X" always works. |
 | Assistant says the key was rejected | Re-paste the key from the phone remote's Setup tab. |

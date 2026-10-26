@@ -19,7 +19,7 @@ const PREFERRED = [
   "com.wbd.stream", "com.hulu.livingroomplus", "com.disney.disneyplus",
   "com.amazon.amazonvideo.livingroom", "com.spotify.tv.android", "com.plexapp.android",
 ];
-const MAX_DOCK = 7;
+const MAX_DOCK = 10; // the dock scrolls, so it can hold more than fits on screen
 const ALIASES = { hbo: "max", "hbo max": "max", prime: "prime video", amazon: "prime video", "disney plus": "disney+", "apple tv plus": "apple tv", "apple tv+": "apple tv", "youtube tv": "youtube" };
 
 // ---------------------------------------------------------------- toast
@@ -47,6 +47,34 @@ function tick() {
 }
 
 // ---------------------------------------------------------------- tiles
+// Tint a tile with the average colour of an app's icon, so icon-only apps
+// (no TV banner) still get a full, rich tile instead of a grey box.
+const tintCache = new Map();
+function tintFromIcon(tile, src) {
+  if (tintCache.has(src)) { tile.style.background = tintCache.get(src); return; }
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = c.height = 8;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0, 8, 8);
+      const d = x.getImageData(0, 0, 8, 8).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue; // skip transparent corners
+        r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+      }
+      if (!n) return;
+      r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+      const bg = `linear-gradient(145deg, rgb(${Math.min(255, r + 40)},${Math.min(255, g + 40)},${Math.min(255, b + 40)}), rgb(${Math.round(r * 0.45)},${Math.round(g * 0.45)},${Math.round(b * 0.45)}))`;
+      tintCache.set(src, bg);
+      tile.style.background = bg;
+    } catch (e) { /* keep the default tile colour */ }
+  };
+  img.src = src;
+}
+
 function appTile(app, opts = {}) {
   const b = document.createElement("button");
   b.className = "tile";
@@ -61,20 +89,54 @@ function appTile(app, opts = {}) {
     face = `<span class="word" style="color:${brand.fg}">${escapeHtml(brand.word)}</span>`;
   } else if (app.icon) {
     face = `<img class="icon" src="${app.icon}" alt="">`;
+    tintFromIcon(b, app.icon);
   } else {
     face = `<span class="word">${escapeHtml(app.label.slice(0, 1))}</span>`;
   }
-  b.innerHTML = `<span class="face">${face}</span><span class="shine"></span><span class="label">${escapeHtml(app.label)}</span>${opts.star ? '<span class="star">★</span>' : ""}`;
+  b.innerHTML = `<span class="face">${face}<span class="gloss"></span></span><span class="label">${escapeHtml(app.label)}</span>${opts.star ? '<span class="star">★</span>' : ""}`;
   return b;
 }
 
-function iconTile(icon, label, onClick, cls = "square") {
+function iconTile(icon, label, onClick) {
   const b = document.createElement("button");
-  b.className = `tile ${cls}`;
+  b.className = "tile round";
   b.setAttribute("data-nav", "");
-  b.innerHTML = `<span class="face">${icon}</span><span class="shine"></span><span class="label">${label}</span>`;
+  b.setAttribute("data-key", label);
+  b.innerHTML = `<span class="face">${icon}<span class="gloss"></span></span><span class="label">${label}</span>`;
   b.addEventListener("click", onClick);
   return b;
+}
+
+// Slide the dock track so the focused tile always has room on screen.
+let trackX = 0;
+function keepInView(el) {
+  const track = el.parentElement;
+  if (!track || !track.classList.contains("track")) return;
+  const margin = window.innerWidth * 0.08;
+  // offsetLeft ignores the tile's own lift/scale, so the maths stays stable.
+  const left = el.offsetLeft + trackX, right = left + el.offsetWidth;
+  let next = trackX;
+  if (right > window.innerWidth - margin) next -= right - (window.innerWidth - margin);
+  if (left < margin) next += margin - left;
+  const maxShift = Math.min(0, window.innerWidth - (track.scrollWidth));
+  next = Math.max(maxShift, Math.min(0, next));
+  if (next !== trackX) {
+    trackX = next;
+    track.style.transform = `translate3d(${trackX}px,0,0)`;
+  }
+  updateEdges(track);
+}
+
+function updateEdges(track) {
+  const dock = $("dock");
+  dock.classList.toggle("more-left", trackX < -1);
+  dock.classList.toggle("more-right", track.scrollWidth + trackX > window.innerWidth + 1);
+}
+
+// A quick "press" when a tile is opened.
+function press(el) {
+  el.classList.add("pressed");
+  setTimeout(() => el.classList.remove("pressed"), 140);
 }
 
 function favoriteApps() {
@@ -82,7 +144,8 @@ function favoriteApps() {
   const byPkg = new Map(apps.map((a) => [a.pkg, a]));
   const fav = getSettings().favorites;
   let list = (fav.length ? fav : PREFERRED).map((p) => byPkg.get(p)).filter(Boolean);
-  if (!list.length) list = apps.filter((a) => a.pkg !== "com.android.tv.settings").slice(0, 7);
+  if (!fav.length) list = list.slice(0, 6); // a calm default; choose more in Appearance
+  if (!list.length) list = apps.filter((a) => a.pkg !== "com.android.tv.settings").slice(0, 6);
   return list.slice(0, MAX_DOCK);
 }
 
@@ -93,20 +156,29 @@ function openApp(app) {
 
 function renderDock() {
   const dock = $("dock");
-  const keep = focused() && dock.contains(focused()) ? focused().getAttribute("data-pkg") || focused().textContent : null;
+  const f = focused();
+  const keep = f && dock.contains(f) ? (f.getAttribute("data-pkg") || f.getAttribute("data-key")) : null;
   dock.innerHTML = "";
+  const track = document.createElement("div");
+  track.className = "track";
   favoriteApps().forEach((app) => {
     const t = appTile(app);
-    t.addEventListener("click", () => openApp(app));
-    dock.appendChild(t);
+    t.addEventListener("click", () => { press(t); setTimeout(() => openApp(app), 120); });
+    track.appendChild(t);
   });
-  dock.appendChild(iconTile(ICONS.more, "All apps", () => openLayer("apps", "open")));
-  dock.appendChild(iconTile(ICONS.pen, "Draw", () => openDraw()));
-  dock.appendChild(iconTile(ICONS.mic, "Ask", () => openAssistant()));
-  dock.appendChild(iconTile(ICONS.appearance, "Appearance", () => openLayer("settings")));
+  const sep = document.createElement("span");
+  sep.className = "dock-sep";
+  track.appendChild(sep);
+  track.appendChild(iconTile(ICONS.more, "All apps", () => openLayer("apps", "open")));
+  track.appendChild(iconTile(ICONS.pen, "Draw", () => openDraw()));
+  track.appendChild(iconTile(ICONS.mic, "Ask", () => openAssistant()));
+  track.appendChild(iconTile(ICONS.appearance, "Appearance", () => openLayer("settings")));
+  dock.appendChild(track);
+  trackX = 0;
+  updateEdges(track);
   if (current() === "home") {
-    const again = keep && Array.from(dock.children).find((c) => c.getAttribute("data-pkg") === keep || c.textContent === keep);
-    setFocus(again || dock.firstElementChild);
+    const again = keep && Array.from(track.children).find((c) => c.getAttribute("data-pkg") === keep || c.getAttribute("data-key") === keep);
+    setFocus(again || track.firstElementChild);
   }
 }
 
@@ -346,8 +418,9 @@ window.tvBus = {
   onVoice(text) { onVoiceResult(text); },
   onResume() {
     goHome();
-    refreshApps(); renderDock();
-    tick(); refreshWeather();
+    tick();
+    // Weather is refreshed every 15 minutes anyway; only fetch if it is stale.
+    if (Date.now() - lastWeatherAt > 15 * 60 * 1000) { lastWeatherAt = Date.now(); refreshWeather(); }
   },
   appsChanged() { refreshApps(); renderDock(); if (current() === "apps") renderApps(); },
 };
@@ -367,6 +440,7 @@ async function applyRemoteSettings(msg) {
 }
 
 // ---------------------------------------------------------------- boot
+let lastWeatherAt = 0;
 function applyAccent(color) {
   const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
   document.documentElement.style.setProperty("--accent", color);
@@ -374,7 +448,14 @@ function applyAccent(color) {
   document.documentElement.style.setProperty("--accent-soft", `rgba(${r},${g},${b},0.35)`);
 }
 
+// Fast mode: solid panels and a still wallpaper. On by default on the TV.
+function applyEffects() {
+  const e = getSettings().effects;
+  document.body.classList.toggle("lite", e === "fast" || (e !== "fancy" && isTV));
+}
+
 function boot() {
+  applyEffects();
   applyAccent(getSettings().accent);
   registerLayer("home", {});
   registerLayer("apps", {
@@ -385,6 +466,7 @@ function boot() {
   initAssistant(actions);
   initSettings({ toast, pickFavorites: () => { closeTop(true); openLayer("apps", "pick"); } });
   initPointer();
+  document.addEventListener("navfocus", (e) => keepInView(e.target));
   openLayer("home");
 
   tick();
@@ -392,11 +474,13 @@ function boot() {
   renderDock();
   renderMessages();
   startWallpaper();
+  lastWeatherAt = Date.now();
   refreshWeather();
-  setInterval(refreshWeather, 15 * 60 * 1000);
+  setInterval(() => { lastWeatherAt = Date.now(); refreshWeather(); }, 15 * 60 * 1000);
 
   onSettings((s, patch) => {
     if ("accent" in patch) applyAccent(s.accent);
+    if ("effects" in patch) { applyEffects(); applyWallpaper(); }
     if ("wallpaper" in patch || "photoUrls" in patch) applyWallpaper();
     if ("cities" in patch || "units" in patch || "clock24" in patch) refreshWeather();
     if ("favorites" in patch && current() === "home") renderDock();

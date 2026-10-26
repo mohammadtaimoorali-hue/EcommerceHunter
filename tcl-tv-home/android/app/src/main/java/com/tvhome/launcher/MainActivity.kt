@@ -47,7 +47,10 @@ class MainActivity : ComponentActivity() {
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             bridge.invalidateApps()
-            callJs("tvBus.appsChanged()")
+            Thread({
+                bridge.getApps()
+                callJs("tvBus.appsChanged()")
+            }, "refresh-apps").start()
         }
     }
 
@@ -64,6 +67,8 @@ class MainActivity : ComponentActivity() {
             .build()
 
         bridge = TvBridge(this)
+        // Build the app list (icons and banners) off the UI thread while the page loads.
+        Thread({ bridge.getApps() }, "warm-apps").start()
         webView = WebView(this).apply {
             setBackgroundColor(0xFF0B1020.toInt())
             isFocusable = true
@@ -73,7 +78,6 @@ class MainActivity : ComponentActivity() {
             settings.mediaPlaybackRequiresUserGesture = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
             addJavascriptInterface(bridge, "Android")
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =

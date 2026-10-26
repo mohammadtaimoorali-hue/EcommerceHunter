@@ -71,9 +71,12 @@ function ridge(rand, w, baseY, amp, roughness, points, peaks) {
 }
 
 function paintLiving(canvas) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = Math.round(canvas.clientWidth * dpr) || 1920;
-  const h = Math.round(canvas.clientHeight * dpr) || 1080;
+  // Paint at no more than 1920px wide: plenty for a soft landscape, and 4x
+  // less memory than painting at 4K on a TV.
+  const cw = canvas.clientWidth || 1920, ch = canvas.clientHeight || 1080;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1920 / cw, 2);
+  const w = Math.round(cw * dpr);
+  const h = Math.round(ch * dpr);
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d");
   const now = new Date();
@@ -109,8 +112,8 @@ function paintLiving(canvas) {
   const cx = w * (0.1 + 0.8 * t);
   const cy = h * (0.62 - Math.sin(Math.PI * t) * 0.45);
   const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, h * 0.35);
-  glow.addColorStop(0, isSun ? "rgba(255,240,210,0.9)" : "rgba(220,230,255,0.55)");
-  glow.addColorStop(0.08, isSun ? "rgba(255,220,170,0.45)" : "rgba(200,215,255,0.18)");
+  glow.addColorStop(0, isSun ? "rgba(255,240,210,0.6)" : "rgba(220,230,255,0.45)");
+  glow.addColorStop(0.08, isSun ? "rgba(255,220,170,0.22)" : "rgba(200,215,255,0.14)");
   glow.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, w, h);

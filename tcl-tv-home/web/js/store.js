@@ -19,6 +19,7 @@ export const DEFAULTS = {
   apiKey: "",
   voiceReplies: true,
   favorites: [],         // package names, in dock order (empty = auto)
+  effects: "auto",       // "auto" (fast on TVs) | "fast" | "fancy"
 };
 
 function read(key, fallback) {

@@ -61,6 +61,7 @@ class TvBridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    @Synchronized
     fun getApps(): String {
         appsJson?.let { return it }
         val seen = LinkedHashMap<String, ResolveInfo>()

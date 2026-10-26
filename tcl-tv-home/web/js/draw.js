@@ -18,7 +18,7 @@ let holdTimer = null, speed = 0.006;
 let onPin = null;
 
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1920 / (canvas.clientWidth || 1920), 2);
   canvas.width = Math.round(canvas.clientWidth * dpr);
   canvas.height = Math.round(canvas.clientHeight * dpr);
   redraw();
