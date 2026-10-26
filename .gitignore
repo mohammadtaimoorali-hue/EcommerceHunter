@@ -4,3 +4,7 @@ dist/
 *.db-journal
 .env
 !.env.example
+tcl-tv-home/android/.gradle/
+tcl-tv-home/android/build/
+tcl-tv-home/android/app/build/
+tcl-tv-home/android/local.properties

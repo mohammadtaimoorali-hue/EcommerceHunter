@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TV Home</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Background: living wallpaper (canvas) or photo slideshow -->
+  <div id="bg">
+    <canvas id="wallpaper"></canvas>
+    <div id="photo-a" class="photo"></div>
+    <div id="photo-b" class="photo"></div>
+  </div>
+  <div id="scrim"></div>
+  <div id="night"></div>
+
+  <!-- HOME -->
+  <main id="home" class="layer active" data-layer="home">
+    <section id="info">
+      <div id="greeting"></div>
+      <div id="clock"><span id="time">--:--</span><span id="ampm"></span></div>
+      <div id="date"></div>
+      <div id="weather"></div>
+      <div id="tip" class="pill hidden"></div>
+    </section>
+
+    <aside id="side">
+      <div id="timers"></div>
+      <div id="messages"></div>
+    </aside>
+
+    <nav id="dock" aria-label="Apps"></nav>
+  </main>
+
+  <!-- ALL APPS -->
+  <section id="apps" class="layer overlay" data-layer="apps" aria-label="All apps">
+    <header class="overlay-head">
+      <h1 id="apps-title">All apps</h1>
+      <p id="apps-hint" class="hint">Press OK to open</p>
+    </header>
+    <div id="apps-grid"></div>
+  </section>
+
+  <!-- DRAW -->
+  <section id="draw" class="layer" data-layer="draw" aria-label="Draw">
+    <canvas id="draw-canvas"></canvas>
+    <div id="cursor"></div>
+    <div id="draw-help" class="pill">Arrows move · OK pen up/down · Back for tools</div>
+    <div id="draw-bar" class="glass">
+      <div id="swatches"></div>
+      <button class="tool" data-nav data-act="size">Size: <b id="size-label">M</b></button>
+      <button class="tool" data-nav data-act="undo">Undo</button>
+      <button class="tool" data-nav data-act="clear">Clear</button>
+      <button class="tool" data-nav data-act="pin">Pin to home</button>
+      <button class="tool" data-nav data-act="exit">Done</button>
+    </div>
+  </section>
+
+  <!-- ASSISTANT -->
+  <section id="assistant" class="layer" data-layer="assistant" aria-label="Assistant">
+    <div id="assistant-card" class="glass">
+      <div id="orb"><span></span><span></span><span></span></div>
+      <div id="assistant-text">
+        <p id="heard" class="heard"></p>
+        <p id="reply" class="reply">Listening…</p>
+      </div>
+      <div id="assistant-actions">
+        <button class="tool" data-nav data-act="talk">Ask again</button>
+        <button class="tool" data-nav data-act="type">Type</button>
+        <button class="tool" data-nav data-act="close">Close</button>
+      </div>
+      <input id="assistant-input" class="hidden" type="text" placeholder="Ask anything…" autocomplete="off">
+    </div>
+  </section>
+
+  <!-- APPEARANCE / SETTINGS -->
+  <section id="settings" class="layer overlay" data-layer="settings" aria-label="Appearance">
+    <header class="overlay-head">
+      <h1>Appearance</h1>
+      <p class="hint">Changes save instantly · Back to close</p>
+    </header>
+    <div id="settings-body"></div>
+  </section>
+
+  <div id="toast" class="glass hidden"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

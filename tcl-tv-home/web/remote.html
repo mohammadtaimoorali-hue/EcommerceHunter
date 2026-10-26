@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b1020">
+  <title>TV Remote</title>
+  <style>
+    :root { --bg: #0b1020; --card: #161c33; --line: rgba(255,255,255,.12); --text: #fff; --muted: rgba(255,255,255,.65); --accent: #8fb4ff; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, "SF Pro Text", Roboto, "Segoe UI", sans-serif; }
+    body { display: flex; flex-direction: column; overscroll-behavior: none; }
+    header { padding: 14px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 20px; margin: 0; font-weight: 650; }
+    #status { font-size: 13px; color: var(--muted); }
+    nav { display: flex; gap: 6px; padding: 0 16px 10px; overflow-x: auto; }
+    nav button { flex: 0 0 auto; padding: 9px 14px; border-radius: 99px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 15px; }
+    nav button.on { background: #fff; color: #111; }
+    main { flex: 1; overflow: auto; padding: 0 16px 24px; }
+    .pane { display: none; }
+    .pane.on { display: block; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+    input, textarea { width: 100%; font: inherit; font-size: 16px; color: #fff; background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 12px; padding: 12px; outline: none; }
+    textarea { min-height: 96px; resize: vertical; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 12px; border: 0; background: var(--accent); color: #0b1020; font-weight: 650; font-size: 16px; }
+    .btn.ghost { background: rgba(255,255,255,.1); color: #fff; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .row .btn { flex: 1; }
+    #pad { width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; background: #05070f; border: 1px solid var(--line); touch-action: none; display: block; }
+    .swatches { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    .sw { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; }
+    .sw.on { border-color: #fff; }
+    .dpad { display: grid; grid-template-columns: repeat(3, 72px); grid-template-rows: repeat(3, 72px); gap: 10px; justify-content: center; margin: 10px auto; }
+    .dpad button { border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: #fff; font-size: 24px; }
+    .dpad .ok { border-radius: 50%; background: #fff; color: #111; font-size: 18px; font-weight: 700; }
+    .apps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .apps button { padding: 14px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: #fff; font-size: 15px; text-align: left; }
+    #gate { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: 24px; gap: 12px; }
+    #gate h2 { margin: 0; font-size: 24px; }
+    #gate p { margin: 0 0 8px; color: var(--muted); }
+    #gate input { font-size: 28px; letter-spacing: 10px; text-align: center; }
+    .hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <h2>Pair with your TV</h2>
+    <p>Enter the PIN shown on the TV under Appearance → Phone remote.</p>
+    <input id="pin" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••">
+    <button class="btn" id="pair">Connect</button>
+    <p id="gate-err" class="hint"></p>
+  </div>
+
+  <header><h1>TV Remote</h1><span id="status">Connected</span></header>
+  <nav>
+    <button data-tab="draw" class="on">Draw</button>
+    <button data-tab="note">Note</button>
+    <button data-tab="ask">Ask</button>
+    <button data-tab="remote">Remote</button>
+    <button data-tab="setup">Setup</button>
+  </nav>
+  <main>
+    <section class="pane on" id="tab-draw">
+      <div class="card">
+        <canvas id="pad"></canvas>
+        <div class="swatches" id="sw"></div>
+        <div class="row">
+          <button class="btn ghost" data-size="0.005">Thin</button>
+          <button class="btn ghost" data-size="0.01">Medium</button>
+          <button class="btn ghost" data-size="0.022">Thick</button>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="undo">Undo</button>
+          <button class="btn ghost" id="clear">Clear</button>
+          <button class="btn" id="pinit">Pin to TV</button>
+        </div>
+        <p class="hint">Draw here and it appears live on the TV. “Pin to TV” keeps it on the home screen.</p>
+      </div>
+    </section>
+
+    <section class="pane" id="tab-note">
+      <div class="card">
+        <label for="note">Message for the TV</label>
+        <textarea id="note" placeholder="Dinner at 7 ❤️"></textarea>
+        <label for="from" style="margin-top:10px">From</label>
+        <input id="from" placeholder="Your name">
+        <div class="swatches" id="note-colors"></div>
+        <div class="row">
+          <button class="btn ghost" data-min="0">Until dismissed</button>
+          <button class="btn ghost" data-min="60">1 hour</button>
+          <button class="btn ghost" data-min="1440">1 day</button>
+        </div>
+        <div class="row"><button class="btn" id="send-note">Send to TV</button></div>
+      </div>
+    </section>
+
+    <section class="pane" id="tab-ask">
+      <div class="card">
+        <label for="q">Ask the TV assistant</label>
+        <textarea id="q" placeholder="Play lo-fi music on YouTube · Set a 10 minute timer · What should I watch tonight?"></textarea>
+        <div class="row"><button class="btn" id="send-q">Ask</button></div>
+        <p class="hint">Tip: use your phone keyboard's microphone to dictate. The answer appears and is spoken on the TV.</p>
+      </div>
+    </section>
+
+    <section class="pane" id="tab-remote">
+      <div class="dpad">
+        <span></span><button data-key="up">▲</button><span></span>
+        <button data-key="left">◀</button><button class="ok" data-key="ok">OK</button><button data-key="right">▶</button>
+        <span></span><button data-key="down">▼</button><span></span>
+      </div>
+      <div class="row">
+        <button class="btn ghost" data-key="back">Back</button>
+        <button class="btn ghost" data-key="home">Home</button>
+      </div>
+      <h3 style="margin:18px 0 8px;font-size:15px;color:var(--muted)">Open an app</h3>
+      <div class="apps" id="apps"></div>
+    </section>
+
+    <section class="pane" id="tab-setup">
+      <div class="card">
+        <label for="key">Claude API key</label>
+        <input id="key" type="password" placeholder="sk-ant-…" autocomplete="off">
+        <p class="hint">Get one at console.anthropic.com. It is sent once to your TV over your home Wi-Fi and stored only there.</p>
+        <label for="name" style="margin-top:10px">Your name</label>
+        <input id="name" placeholder="For the greeting">
+        <label for="city" style="margin-top:10px">Weather city</label>
+        <input id="city" placeholder="e.g. Lahore">
+        <div class="row"><button class="btn" id="save">Save to TV</button></div>
+      </div>
+      <div class="row"><button class="btn ghost" id="forget">Forget this TV</button></div>
+    </section>
+  </main>
+
+<script>
+(function () {
+  var COLORS = ["#ffffff", "#ff5b6e", "#ffb547", "#ffe45c", "#5ce08a", "#5cc8ff", "#a78bff", "#ff8ad8"];
+  var NOTE_COLORS = ["", "rgba(255,91,110,.55)", "rgba(255,181,71,.55)", "rgba(92,224,138,.5)", "rgba(92,200,255,.5)", "rgba(167,139,255,.55)"];
+  var pin = "";
+  try { pin = localStorage.getItem("tvremote.pin") || ""; } catch (e) {}
+  var $ = function (id) { return document.getElementById(id); };
+  var status = $("status");
+
+  function send(obj) {
+    obj.pin = pin;
+    return fetch("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj) })
+      .then(function (r) {
+        if (r.status === 403) { showGate("That PIN didn't match. Check the TV."); throw new Error("pin"); }
+        status.textContent = "Connected";
+        return r;
+      })
+      .catch(function (e) { if (e.message !== "pin") status.textContent = "TV not reachable"; throw e; });
+  }
+
+  function showGate(msg) { $("gate").classList.remove("hidden"); $("gate-err").textContent = msg || ""; }
+  function hideGate() { $("gate").classList.add("hidden"); loadApps(); }
+
+  $("pair").onclick = function () {
+    pin = $("pin").value.trim();
+    fetch("/api/ping?pin=" + encodeURIComponent(pin)).then(function (r) {
+      if (r.ok) { try { localStorage.setItem("tvremote.pin", pin); } catch (e) {} hideGate(); }
+      else showGate("That PIN didn't match. Check the TV.");
+    }).catch(function () { showGate("Couldn't reach the TV. Are you on the same Wi-Fi?"); });
+  };
+  if (pin) {
+    fetch("/api/ping?pin=" + encodeURIComponent(pin)).then(function (r) { if (r.ok) hideGate(); else showGate(); }).catch(function () { showGate(); });
+  }
+
+  // Tabs
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) {
+    b.onclick = function () {
+      document.querySelectorAll("nav button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      document.querySelectorAll(".pane").forEach(function (p) { p.classList.toggle("on", p.id === "tab-" + b.dataset.tab); });
+      if (b.dataset.tab === "draw") sizePad();
+    };
+  });
+
+  // ---------- Draw ----------
+  var pad = $("pad"), ctx = pad.getContext("2d");
+  var color = COLORS[1], size = 0.01, strokeId = 0, cur = null, queue = [], flushTimer = null;
+  function sizePad() {
+    var r = pad.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    pad.width = r.width * d; pad.height = r.height * d;
+  }
+  sizePad(); window.addEventListener("resize", sizePad);
+  COLORS.forEach(function (c) {
+    var s = document.createElement("button"); s.className = "sw" + (c === color ? " on" : ""); s.style.background = c;
+    s.onclick = function () { color = c; document.querySelectorAll("#sw .sw").forEach(function (x) { x.classList.toggle("on", x === s); }); };
+    $("sw").appendChild(s);
+  });
+  document.querySelectorAll("[data-size]").forEach(function (b) { b.onclick = function () { size = parseFloat(b.dataset.size); }; });
+  function pt(e) { var r = pad.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; }
+  function flush(end) {
+    if (!cur) return;
+    if (!queue.length && !end) return;
+    send({ type: "stroke", id: cur.id, color: cur.color, size: cur.size, points: queue.splice(0), end: !!end }).catch(function () {});
+  }
+  pad.addEventListener("pointerdown", function (e) {
+    pad.setPointerCapture(e.pointerId);
+    cur = { id: Date.now() + "-" + (strokeId++), color: color, size: size, last: pt(e) };
+    queue = [cur.last];
+    flushTimer = setInterval(function () { flush(false); }, 50);
+  });
+  pad.addEventListener("pointermove", function (e) {
+    if (!cur) return;
+    var p = pt(e), w = pad.width, h = pad.height;
+    ctx.strokeStyle = cur.color; ctx.lineWidth = cur.size * w; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(cur.last[0] * w, cur.last[1] * h); ctx.lineTo(p[0] * w, p[1] * h); ctx.stroke();
+    cur.last = p; queue.push(p);
+  });
+  function up() { if (!cur) return; clearInterval(flushTimer); flush(true); cur = null; }
+  pad.addEventListener("pointerup", up); pad.addEventListener("pointercancel", up);
+  $("clear").onclick = function () { ctx.clearRect(0, 0, pad.width, pad.height); send({ type: "stroke", clear: true }); };
+  $("undo").onclick = function () { send({ type: "stroke", undo: true }); };
+  $("pinit").onclick = function () { send({ type: "draw", action: "pin" }); ctx.clearRect(0, 0, pad.width, pad.height); };
+
+  // ---------- Note ----------
+  var noteColor = "", noteMin = 0;
+  try { $("from").value = localStorage.getItem("tvremote.from") || ""; } catch (e) {}
+  NOTE_COLORS.forEach(function (c, i) {
+    var s = document.createElement("button"); s.className = "sw" + (i === 0 ? " on" : ""); s.style.background = c || "rgba(255,255,255,.15)";
+    s.onclick = function () { noteColor = c; document.querySelectorAll("#note-colors .sw").forEach(function (x) { x.classList.toggle("on", x === s); }); };
+    $("note-colors").appendChild(s);
+  });
+  document.querySelectorAll("[data-min]").forEach(function (b) {
+    b.onclick = function () { noteMin = parseInt(b.dataset.min, 10); document.querySelectorAll("[data-min]").forEach(function (x) { x.style.outline = x === b ? "2px solid #fff" : ""; }); };
+  });
+  $("send-note").onclick = function () {
+    var text = $("note").value.trim(); if (!text) return;
+    var from = $("from").value.trim();
+    try { localStorage.setItem("tvremote.from", from); } catch (e) {}
+    send({ type: "note", text: text, from: from || "Phone", minutes: noteMin, color: noteColor }).then(function () { $("note").value = ""; status.textContent = "Sent ✓"; });
+  };
+
+  // ---------- Ask ----------
+  $("send-q").onclick = function () {
+    var q = $("q").value.trim(); if (!q) return;
+    send({ type: "ask", text: q }).then(function () { $("q").value = ""; status.textContent = "Asked ✓"; });
+  };
+
+  // ---------- Remote ----------
+  document.querySelectorAll("[data-key]").forEach(function (b) {
+    b.onclick = function () { if (navigator.vibrate) navigator.vibrate(10); send({ type: "key", key: b.dataset.key }).catch(function () {}); };
+  });
+  function loadApps() {
+    fetch("/api/apps?pin=" + encodeURIComponent(pin)).then(function (r) { return r.json(); }).then(function (apps) {
+      var box = $("apps"); box.innerHTML = "";
+      apps.forEach(function (a) {
+        var b = document.createElement("button"); b.textContent = a.label;
+        b.onclick = function () { send({ type: "launch", pkg: a.pkg }); };
+        box.appendChild(b);
+      });
+    }).catch(function () {});
+  }
+
+  // ---------- Setup ----------
+  $("save").onclick = function () {
+    send({ type: "settings", apiKey: $("key").value.trim(), name: $("name").value, city: $("city").value.trim() })
+      .then(function () { $("key").value = ""; status.textContent = "Saved ✓"; });
+  };
+  $("forget").onclick = function () { try { localStorage.removeItem("tvremote.pin"); } catch (e) {} pin = ""; showGate(); };
+})();
+</script>
+</body>
+</html>

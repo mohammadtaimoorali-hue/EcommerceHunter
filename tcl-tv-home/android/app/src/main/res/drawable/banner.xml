@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 16:9 banner shown in the TV app row. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="180"
+                android:startColor="#FF2B3F7E" android:endColor="#FFC9B6E0" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFF4DC" android:pathData="M250,50m-14,0a14,14 0,1 1,28 0a14,14 0,1 1,-28 0" />
+    <path android:fillColor="#FF5B6C9C" android:pathData="M0,140 L70,70 L110,110 L160,60 L230,125 L280,95 L320,115 L320,180 L0,180 Z" />
+    <path android:fillColor="#FFF4F7FF" android:pathData="M70,70 L84,84 L76,82 L68,88 L58,82 Z M160,60 L175,74 L166,72 L158,79 L148,73 Z" />
+    <path android:fillColor="#FF1C2238" android:pathData="M0,155 L50,135 L95,152 L150,130 L210,155 L265,138 L320,150 L320,180 L0,180 Z" />
+</vector>
